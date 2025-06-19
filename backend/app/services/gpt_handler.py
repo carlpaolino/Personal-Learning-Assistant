@@ -5,11 +5,18 @@ from typing import List, Dict, Any
 
 class GPTHandler:
     def __init__(self):
-        self.client = openai.OpenAI(api_key=current_app.config['OPENAI_API_KEY'])
+        self.client = None
+    
+    def _get_client(self):
+        """Initialize OpenAI client lazily when needed"""
+        if self.client is None:
+            self.client = openai.OpenAI(api_key=current_app.config['OPENAI_API_KEY'])
+        return self.client
     
     def explain_topic(self, topic: str, persona_level: str = 'student', max_words: int = 500) -> str:
         """Generate explanation for a topic based on persona level"""
         try:
+            client = self._get_client()
             persona_prompts = {
                 'student': 'Explain this in simple terms suitable for a high school student:',
                 'college': 'Provide a detailed explanation suitable for a college student:',
@@ -18,7 +25,7 @@ class GPTHandler:
             
             prompt = f"{persona_prompts.get(persona_level, persona_prompts['student'])} {topic}\n\nKeep the explanation under {max_words} words and make it engaging and easy to understand."
             
-            response = self.client.chat.completions.create(
+            response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "You are a helpful educational tutor. Provide clear, accurate, and engaging explanations."},
@@ -36,6 +43,7 @@ class GPTHandler:
     def generate_quiz(self, topic: str, num_questions: int = 5) -> List[Dict[str, Any]]:
         """Generate multiple choice quiz questions for a topic"""
         try:
+            client = self._get_client()
             prompt = f"""Generate {num_questions} multiple choice questions about {topic}.
             
             Return the response as a JSON array with this exact format:
@@ -50,7 +58,7 @@ class GPTHandler:
             
             Make sure the questions are educational and the explanations are helpful."""
             
-            response = self.client.chat.completions.create(
+            response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "You are an educational quiz generator. Always respond with valid JSON."},
@@ -90,6 +98,7 @@ class GPTHandler:
     def chat_response(self, message: str, session_history: List[Dict[str, str]] = None, user_context: str = "") -> str:
         """Generate chat response with session memory"""
         try:
+            client = self._get_client()
             # Build conversation history
             messages = [
                 {"role": "system", "content": f"You are Athena, a helpful AI tutor for the Personalized Learning Assistant. {user_context} Be encouraging, clear, and educational in your responses."}
@@ -103,7 +112,7 @@ class GPTHandler:
             # Add current message
             messages.append({"role": "user", "content": message})
             
-            response = self.client.chat.completions.create(
+            response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=messages,
                 max_tokens=500,
@@ -118,6 +127,7 @@ class GPTHandler:
     def create_study_plan(self, topics: List[str], target_date: str, persona: str = 'student') -> Dict[str, Any]:
         """Generate a personalized study plan"""
         try:
+            client = self._get_client()
             topics_str = ", ".join(topics)
             
             prompt = f"""Create a 7-day study plan for these topics: {topics_str}
@@ -145,7 +155,7 @@ class GPTHandler:
             
             Make the plan realistic and engaging for a {persona}."""
             
-            response = self.client.chat.completions.create(
+            response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "You are an educational planner. Create realistic and engaging study plans. Always respond with valid JSON."},
